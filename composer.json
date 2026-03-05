@@ -1,6 +1,6 @@
 {
-    "name": "codeigniter4/appstarter",
-    "description": "CodeIgniter4 starter app",
+    "name": "asfar/flight-aggregator",
+    "description": "Flight Search Aggregator - CodeIgniter 4 Backend Service",
     "license": "MIT",
     "type": "project",
     "homepage": "https://codeigniter.com",
@@ -33,11 +33,20 @@
         }
     },
     "config": {
-        "optimize-autoloader": true,
-        "preferred-install": "dist",
-        "sort-packages": true
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "platform-check": false,
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
+    ,
+  "minimum-stability": "dev",
+  "prefer-stable": true
     },
     "scripts": {
-        "test": "phpunit"
+    "post-update-cmd": [
+      "CodeIgniter\\ComposerScripts::postUpdate"
+    ]
     }
 }
