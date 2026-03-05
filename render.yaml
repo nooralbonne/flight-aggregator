@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: flight-aggregator
+    runtime: php
+    buildCommand: composer install --no-dev --optimize-autoloader
+    startCommand: php -S 0.0.0.0:$PORT -t public
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
+      - key: app.baseURL
+        generateValue: false
+      - key: SUPPLIER_A_BASE_URL
+        value: https://flight-aggregator.onrender.com/mock/supplier-a
+      - key: SUPPLIER_B_BASE_URL
+        value: https://flight-aggregator.onrender.com/mock/supplier-b
+      - key: SUPPLIER_TIMEOUT
+        value: 5
+      - key: SUPPLIER_A_SIMULATE_SLOW
+        value: false
+      - key: SUPPLIER_B_SIMULATE_FAIL
+        value: false
+      - key: RATE_LIMIT_REQUESTS
+        value: 30
+      - key: RATE_LIMIT_WINDOW
+        value: 60
