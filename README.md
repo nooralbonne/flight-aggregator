@@ -3,7 +3,7 @@
 A **CodeIgniter 4** backend service that aggregates flight search results from two mock suppliers, normalizes their different response formats into a unified schema, and returns merged, filtered, and sorted results.
 
 **Live Demo:** https://flight-aggregator.free.nf  
-**GitHub:** https://github.com/your-username/flight-aggregator
+**GitHub:** https://github.com/nooralbonne/flight-aggregator
 
 ---
 
