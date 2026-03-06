@@ -1,461 +1,249 @@
-# ✈️ Flight Search Aggregator — Asfar Group Backend Assessment
+# Flight Search Aggregator
 
-A **CodeIgniter 4** backend service that aggregates flight search results from two mock suppliers, normalizes their different response formats into a unified schema, and returns merged, filtered, and sorted results.
+This project was built as part of the Asfar Group backend assessment. The idea is simple: instead of searching one flight supplier at a time, this API calls two suppliers at once, combines the results, and gives you everything in one clean response.
 
-**Live Demo:** https://flight-aggregator.free.nf  
+Think of it like a mini Skyscanner — but built from scratch in CodeIgniter 4.
+
+**Live:** https://flight-aggregator.free.nf  
 **GitHub:** https://github.com/nooralbonne/flight-aggregator
 
 ---
 
-## 📐 How It Works
+## Setup
 
-```
-User Request
-     │
-     ▼
-┌─────────────────────────────────┐
-│  Rate Limiter (30 req/60s)      │
-└──────────────┬──────────────────┘
-               │
-               ▼
-┌─────────────────────────────────┐
-│  FlightController               │
-│  • Validates input              │
-│  • Calls the service            │
-└──────────────┬──────────────────┘
-               │
-               ▼
-┌─────────────────────────────────┐
-│  FlightAggregatorService        │
-│  • Checks cache (120s TTL)      │
-│  • Calls both suppliers         │
-│  • Merges + filters + sorts     │
-│  • Returns partial if one fails │
-└────────┬────────────────────────┘
-         │               │
-         ▼               ▼
-  Supplier A         Supplier B
-  (mock endpoint)    (mock endpoint)
-  Different format   Different format
-         │               │
-         └───────┬────────┘
-                 ▼
-         NormalizedFlight DTO
-         (unified schema)
-```
-
----
-
-## 🚀 Setup Instructions
-
-### Requirements
-- PHP 8.1+
+### What you need
+- PHP 8.1 or higher
 - Composer
-- Extensions: `curl`, `mbstring`, `xml`, `intl`
 
-### Local Installation (WAMP / XAMPP)
+### Steps
 
 ```bash
-# 1. Clone the repository
+# 1. clone the project
 git clone https://github.com/your-username/flight-aggregator.git
 cd flight-aggregator
 
-# 2. Install dependencies
+# 2. install dependencies
 composer install
 
-# 3. Copy environment file
-copy env .env        # Windows
-cp env .env          # Linux/Mac
+# 3. copy the env file
+cp env .env
 
-# 4. Create writable directories
-mkdir -p writable/cache writable/logs writable/session
-
-# 5. Set permissions (Linux/Mac only)
-chmod -R 777 writable/
-
-# 6. Start server
+# 4. start the server
 php spark serve
 ```
 
-**Then open:** http://localhost:8080
+Now open http://localhost:8080 and you'll see the search page.
+
+> If you're on Windows with WAMP, skip `php spark serve` and just open
+> http://localhost/flight-aggregator/public
 
 ---
 
-## ⚙️ Environment Configuration
+## Environment config
 
-Edit the `env` file (rename to `.env` for local):
+Open the `.env` file and update these:
 
 ```ini
-# ─── App ──────────────────────────────────────────────────────
 CI_ENVIRONMENT = development
+
 app.baseURL = 'http://localhost:8080/'
 
-# ─── Supplier URLs ────────────────────────────────────────────
-# Point to the mock endpoints (same app)
+# these are the two mock suppliers (they live inside the same app)
 SUPPLIER_A_BASE_URL = http://localhost:8080/mock/supplier-a
 SUPPLIER_B_BASE_URL = http://localhost:8080/mock/supplier-b
 
-# Timeout in seconds before giving up on a supplier
+# how many seconds to wait for a supplier before giving up
 SUPPLIER_TIMEOUT = 5
 
-# ─── Simulate failures (for testing) ─────────────────────────
-SUPPLIER_A_SIMULATE_SLOW = false   # Makes Supplier A wait 4s
-SUPPLIER_B_SIMULATE_FAIL = false   # Makes Supplier B return 503
+# leave these false normally — set to true to test what happens when a supplier fails
+SUPPLIER_A_SIMULATE_SLOW = false
+SUPPLIER_B_SIMULATE_FAIL = false
 
-# ─── Rate Limiting ────────────────────────────────────────────
-RATE_LIMIT_REQUESTS = 30           # Max requests per window
-RATE_LIMIT_WINDOW = 60             # Window size in seconds
+# rate limiting: max 30 requests per minute per IP
+RATE_LIMIT_REQUESTS = 30
+RATE_LIMIT_WINDOW = 60
 ```
 
 ---
 
-## 📡 Available Endpoints
+## Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Frontend UI — Search page |
-| `GET` | `/health` | Service health check |
-| `GET` | `/api/flights/search` | **Main search API** |
-| `GET` | `/mock/supplier-a` | Mock Supplier A |
-| `GET` | `/mock/supplier-b` | Mock Supplier B |
-
----
-
-## 🔍 Search API — `/api/flights/search`
-
-### Required Parameters
-
-| Parameter | Type | Example |
-|-----------|------|---------|
-| `origin` | string (IATA) | `DXB` |
-| `destination` | string (IATA) | `LHR` |
-| `departure_date` | YYYY-MM-DD | `2025-09-15` |
-
-### Optional Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `passengers` | integer | Number of passengers (default: 1) |
-| `cabin_class` | string | `economy` / `business` / `first` / `premium_economy` |
-| `max_price` | float | Max price filter in USD |
-| `min_price` | float | Min price filter in USD |
-| `airlines` | string | Comma-separated IATA codes e.g. `EK,QR` |
-| `max_stops` | integer | `0` = direct only, `1`, `2` |
-| `refundable_only` | string | `true` or `false` |
-| `max_duration_minutes` | integer | Max flight duration |
-| `sort_by` | string | `price` / `duration` / `departure` / `stops` / `airline` |
-| `sort_order` | string | `asc` or `desc` (default: `asc`) |
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | `/` | Search UI (the frontend page) |
+| GET | `/health` | Check if the service is running |
+| GET | `/api/flights/search` | The main search API |
+| GET | `/mock/supplier-a` | Mock Supplier A |
+| GET | `/mock/supplier-b` | Mock Supplier B |
 
 ---
 
-## 📋 Example Requests
+## Search API
 
-### Basic Search
+**Required:**
+
+| Param | Example |
+|-------|---------|
+| `origin` | `DXB` |
+| `destination` | `LHR` |
+| `departure_date` | `2026-09-15` |
+
+**Optional filters:**
+
+| Param | Example | What it does |
+|-------|---------|-------------|
+| `passengers` | `2` | number of passengers, default is 1 |
+| `cabin_class` | `economy` | economy / business / first / premium_economy |
+| `max_price` | `600` | hide anything above this price (USD) |
+| `min_price` | `200` | hide anything below this price |
+| `airlines` | `EK,QR` | show only these airlines |
+| `max_stops` | `0` | 0 = direct flights only, 1 = max one stop |
+| `refundable_only` | `true` | show only refundable tickets |
+| `max_duration_minutes` | `480` | hide flights longer than this |
+| `sort_by` | `price` | price / duration / departure / arrival / stops / airline |
+| `sort_order` | `asc` | asc or desc |
+
+---
+
+## Example requests
+
+Basic search:
 ```bash
-curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2025-09-15"
+curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2026-09-15"
 ```
 
-### Economy + Max $600 + Direct Only
+Direct flights only, sorted by price:
 ```bash
-curl "https://flight-aggregator.free.nf/api/flights/search\
-?origin=DXB\
-&destination=LHR\
-&departure_date=2025-09-15\
-&cabin_class=economy\
-&max_price=600\
-&max_stops=0\
-&sort_by=price\
-&sort_order=asc"
+curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2026-09-15&max_stops=0&sort_by=price"
 ```
 
-### Filter by Specific Airlines
+Business class under $1200:
 ```bash
-curl "https://flight-aggregator.free.nf/api/flights/search\
-?origin=DXB\
-&destination=LHR\
-&departure_date=2025-09-15\
-&airlines=EK,QR"
+curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2026-09-15&cabin_class=business&max_price=1200"
 ```
 
-### Sort by Duration (Fastest First)
+Refundable tickets sorted by duration:
 ```bash
-curl "https://flight-aggregator.free.nf/api/flights/search\
-?origin=DXB\
-&destination=LHR\
-&departure_date=2025-09-15\
-&sort_by=duration\
-&sort_order=asc"
+curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2026-09-15&refundable_only=true&sort_by=duration"
 ```
 
-### Refundable Tickets Only
-```bash
-curl "https://flight-aggregator.free.nf/api/flights/search\
-?origin=DXB\
-&destination=LHR\
-&departure_date=2025-09-15\
-&refundable_only=true"
-```
-
-### Health Check
+Health check:
 ```bash
 curl "https://flight-aggregator.free.nf/health"
 ```
 
 ---
 
-## 📦 Response Format
+## What the response looks like
 
-### Success (HTTP 200)
+When both suppliers work fine (HTTP 200):
 ```json
 {
-    "status": "success",
-    "meta": {
-        "total_results": 9,
-        "filtered_from": 9,
-        "cache_hit": false,
-        "cached_until": "2025-09-15T10:02:00+00:00",
-        "total_duration_ms": 87,
-        "suppliers": {
-            "supplier_a": { "status": "ok", "count": 4, "duration_ms": 42 },
-            "supplier_b": { "status": "ok", "count": 5, "duration_ms": 38 }
-        }
-    },
-    "results": [
-        {
-            "id": "SA-SA001",
-            "supplier": "supplier_a",
-            "airline": "Emirates",
-            "airline_code": "EK",
-            "flight_number": "EK512",
-            "origin": "DXB",
-            "destination": "LHR",
-            "departure_at": "2025-09-15T08:00:00Z",
-            "arrival_at": "2025-09-15T14:00:00Z",
-            "duration_minutes": 360,
-            "stops": 0,
-            "price": 430.50,
-            "currency": "USD",
-            "cabin_class": "economy",
-            "seats_available": 8,
-            "refundable": true,
-            "baggage": { "cabin": "7kg", "checked": "23kg" },
-            "layovers": null,
-            "deep_link": "https://supplier-a.mock/book/SA001"
-        }
-    ]
-}
-```
-
-### Partial Response (HTTP 206) — One supplier failed
-```json
-{
-    "status": "partial",
-    "meta": {
-        "suppliers": {
-            "supplier_a": { "status": "ok", "count": 4, "duration_ms": 42 },
-            "supplier_b": { "status": "error", "error": "Supplier B returned HTTP 503", "duration_ms": 10 }
-        }
-    },
-    "results": [ ... ]
-}
-```
-
-### Both Failed (HTTP 503)
-```json
-{
-    "status": "error",
-    "meta": {
-        "suppliers": {
-            "supplier_a": { "status": "error", "error": "Supplier A timed out after 5s" },
-            "supplier_b": { "status": "error", "error": "Supplier B returned HTTP 503" }
-        }
-    },
-    "results": []
-}
-```
-
-### Validation Error (HTTP 422)
-```json
-{
-    "status": "error",
-    "message": "Validation failed",
-    "errors": {
-        "origin": "Origin airport IATA code is required.",
-        "departure_date": "Departure date must be in YYYY-MM-DD format."
+  "status": "success",
+  "meta": {
+    "total_results": 9,
+    "cache_hit": false,
+    "total_duration_ms": 83,
+    "suppliers": {
+      "supplier_a": { "status": "ok", "count": 4, "duration_ms": 40 },
+      "supplier_b": { "status": "ok", "count": 5, "duration_ms": 38 }
     }
+  },
+  "results": [
+    {
+      "id": "SA-SA001",
+      "supplier": "supplier_a",
+      "airline": "Emirates",
+      "airline_code": "EK",
+      "flight_number": "EK512",
+      "origin": "DXB",
+      "destination": "LHR",
+      "departure_at": "2026-09-15T08:00:00Z",
+      "arrival_at": "2026-09-15T14:00:00Z",
+      "duration_minutes": 360,
+      "stops": 0,
+      "price": 430.50,
+      "currency": "USD",
+      "cabin_class": "economy",
+      "seats_available": 8,
+      "refundable": true,
+      "baggage": { "cabin": "7kg", "checked": "23kg" }
+    }
+  ]
 }
 ```
 
-### Rate Limit Exceeded (HTTP 429)
-```json
-{
-    "status": "error",
-    "message": "Too many requests. Please try again later.",
-    "retry_after_seconds": 45
-}
-```
+If one supplier fails, you get HTTP 206 and `"status": "partial"` — results still come from the working one.
+
+If both fail, you get HTTP 503 and `"status": "error"`.
 
 ---
 
-## 🧪 How to Simulate Supplier Failure / Timeout
+## How to simulate supplier failure
 
-### Method 1 — Query Parameter (one request only)
+There are three ways to test this.
 
+**Option 1 — query param (just for one request):**
 ```bash
-# Simulate Supplier A slow response (4 second delay)
+# Supplier A will respond slowly (4 second delay)
 curl "https://flight-aggregator.free.nf/mock/supplier-a?simulate_slow=1"
 
-# Simulate Supplier B hard failure (returns HTTP 503)
+# Supplier B will return a 503 error
 curl "https://flight-aggregator.free.nf/mock/supplier-b?simulate_fail=1"
 ```
 
-### Method 2 — Environment Variable (permanent until changed)
+After that, run a normal search and you'll see `"status": "partial"` in the response with the error logged under `meta.suppliers`.
 
-Edit the `env` file:
+**Option 2 — env file (stays on until you change it back):**
 ```ini
-# Supplier A will always be slow (triggers timeout)
 SUPPLIER_A_SIMULATE_SLOW = true
-
-# Supplier B will always fail
 SUPPLIER_B_SIMULATE_FAIL = true
 ```
 
-Then call the search endpoint — you will get **HTTP 206 Partial Content**
-with results from only the working supplier, and the failed supplier
-will appear in `meta.suppliers` with `"status": "error"`.
-
-### Method 3 — Edit Config Directly
+**Option 3 — edit the config directly:**
 
 In `app/Config/Suppliers.php`:
 ```php
 public array $supplierA = [
-    'simulate_slow' => true,  // ← enable
-    'slow_delay'    => 4,     // ← seconds to delay
+    'simulate_slow' => true,
+    'slow_delay'    => 4,
 ];
 
 public array $supplierB = [
-    'simulate_fail' => true,  // ← enable
+    'simulate_fail' => true,
 ];
 ```
 
-### Expected Partial Response When Supplier B Fails:
-```bash
-curl "https://flight-aggregator.free.nf/api/flights/search?origin=DXB&destination=LHR&departure_date=2025-09-15"
+---
 
-# Response: HTTP 206
-{
-  "status": "partial",
-  "meta": {
-    "suppliers": {
-      "supplier_a": { "status": "ok", "count": 4 },
-      "supplier_b": { "status": "error", "error": "Supplier B returned HTTP 503" }
-    }
-  }
-}
+## A note on the two suppliers
+
+The whole point of this project is handling suppliers that return data in completely different formats. Here's what I mean:
+
+Supplier A sends:
+```json
+{ "carrier": "Emirates", "from": "DXB", "fare": { "amount": 450 }, "num_stops": 0 }
 ```
 
----
-
-## 🏗️ Project Structure
-
-```
-flight-aggregator/
-├── app/
-│   ├── Config/
-│   │   ├── App.php              # Base URL, charset, etc.
-│   │   ├── Cache.php            # Cache handler (file-based)
-│   │   ├── Filters.php          # Register rate limiter
-│   │   ├── Logger.php           # Log level config
-│   │   ├── Paths.php            # Directory paths
-│   │   ├── Routes.php           # URL → Controller mapping
-│   │   └── Suppliers.php        # Supplier A & B settings
-│   ├── Controllers/
-│   │   ├── FlightController.php        # Search API + UI
-│   │   └── MockSupplierController.php  # Fake supplier endpoints
-│   ├── Filters/
-│   │   ├── RateLimitFilter.php         # 30 req/60s per IP
-│   │   └── JsonResponseFilter.php      # Force JSON headers
-│   ├── Libraries/
-│   │   ├── NormalizedFlight.php        # Unified flight DTO
-│   │   ├── SupplierAClient.php         # Supplier A HTTP client
-│   │   └── SupplierBClient.php         # Supplier B HTTP client
-│   ├── Services/
-│   │   └── FlightAggregatorService.php # Core business logic
-│   └── Views/
-│       └── search.php                  # Frontend UI
-├── public/
-│   ├── index.php                # Entry point
-│   └── .htaccess                # URL rewriting
-├── writable/
-│   ├── cache/                   # Cached search results
-│   └── logs/                    # Application logs
-├── env                          # Environment config
-└── README.md
+Supplier B sends the exact same info but like this:
+```json
+{ "airline_name": "Emirates", "departure_airport": "DXB", "total_price": { "value": 450 }, "connection_count": 0 }
 ```
 
----
-
-## 🔐 Rate Limiting
-
-- **30 requests** per **60 seconds** per IP address
-- Storage: file-based cache (no Redis needed)
-- Response headers on every API call:
-  - `X-RateLimit-Limit: 30`
-  - `X-RateLimit-Remaining: 27`
-  - `X-RateLimit-Reset: 1726394520`
-- When exceeded: **HTTP 429** with `Retry-After` header
+The `SupplierAClient` and `SupplierBClient` classes each handle their own format and map it to a single `NormalizedFlight` object — so by the time results reach the service layer, everything looks the same regardless of where it came from.
 
 ---
 
-## 💾 Caching
+## Caching
 
-- **TTL:** 120 seconds
-- **Handler:** File-based (works everywhere, no Redis)
-- **Key:** MD5 hash of sorted search parameters
-- Same search within 120s returns cached result instantly
-- `meta.cache_hit: true` indicates a cached response
+Results are cached for 120 seconds. The cache key is built from the search parameters, so the same search within 2 minutes returns instantly without hitting the suppliers again. You can tell it's cached when the response has `"cache_hit": true`.
 
 ---
 
-## 📊 Logging
+## Rate limiting
 
-All supplier activity is logged to `writable/logs/log-YYYY-MM-DD.log`:
-
-```
-INFO  [SupplierA] Sending request {"origin":"DXB","destination":"LHR"}
-INFO  [SupplierA] Response received {"status":200,"duration_ms":42}
-INFO  [SupplierA] Normalized 4 flights
-INFO  [SupplierB] Request timed out after 5s        ← timeout example
-WARN  [Aggregator] Supplier B failed: timeout
-INFO  [Aggregator] Cached 120s
-INFO  [Aggregator] Done {"total":4,"status":"partial"}
-```
+The search endpoint allows 30 requests per minute per IP. If you go over that you get HTTP 429. The response includes a `Retry-After` header so you know when to try again.
 
 ---
 
-## 🔄 Supplier Format Differences
-
-This is the core of the normalization layer:
-
-| Field | Supplier A | Supplier B | Normalized |
-|-------|-----------|-----------|-----------|
-| ID | `flight_id` | `ref` | `id` |
-| Airline | `carrier` | `airline_name` | `airline` |
-| Code | `carrier_code` | `iata` | `airline_code` |
-| Origin | `from` | `departure_airport` | `origin` |
-| Destination | `to` | `arrival_airport` | `destination` |
-| Departure | `departs` (UTC) | `departure_time` (+03:00) | `departure_at` |
-| Duration | `flight_duration` | `total_minutes` | `duration_minutes` |
-| Stops | `num_stops` | `connection_count` | `stops` |
-| Price | `fare.amount` | `total_price.value` | `price` |
-| Cabin | `class` (text) | `travel_class` (Y/C/F) | `cabin_class` |
-| Seats | `available_seats` | `remaining_seats` | `seats_available` |
-| Refund | `is_refundable` | `cancellable` | `refundable` |
-
----
-
-## 👩‍💻 Author
-
-**Noor Albonne**  
-Backend Developer Assessment — Asfar Group  
-CodeIgniter 4 · Flight Search Aggregator · 2026
+*Noor Albonne — Asfar Group Backend Assessment 2026*
